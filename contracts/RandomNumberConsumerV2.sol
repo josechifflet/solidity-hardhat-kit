@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 // An example of a consumer contract that relies on a subscription for funding.
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.13;
 
 import "@chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import { LibDiamond } from "./libraries/LibDiamond.sol";
 
 /**
  * @title The RandomNumberConsumerV2 contract
@@ -39,7 +40,6 @@ contract RandomNumberConsumerV2 is VRFConsumerBaseV2 {
 
   uint256[] public s_randomWords;
   uint256 public s_requestId;
-  address s_owner;
 
   event ReturnedRandomness(uint256[] randomWords);
 
@@ -59,7 +59,6 @@ contract RandomNumberConsumerV2 is VRFConsumerBaseV2 {
     COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
     LINKTOKEN = LinkTokenInterface(link);
     s_keyHash = keyHash;
-    s_owner = msg.sender;
     s_subscriptionId = subscriptionId;
   }
 
@@ -67,7 +66,8 @@ contract RandomNumberConsumerV2 is VRFConsumerBaseV2 {
    * @notice Requests randomness
    * Assumes the subscription is funded sufficiently; "Words" refers to unit of data in Computer Science
    */
-  function requestRandomWords() external onlyOwner {
+  function requestRandomWords() public {
+    LibDiamond.enforceIsContractOwner();
     // Will revert if subscription is not set and funded.
     s_requestId = COORDINATOR.requestRandomWords(
       s_keyHash,
@@ -87,10 +87,5 @@ contract RandomNumberConsumerV2 is VRFConsumerBaseV2 {
   function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {
     s_randomWords = randomWords;
     emit ReturnedRandomness(randomWords);
-  }
-
-  modifier onlyOwner() {
-    require(msg.sender == s_owner);
-    _;
   }
 }
